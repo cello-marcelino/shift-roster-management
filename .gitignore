@@ -23,7 +23,8 @@
 /storage/*.key
 /storage/pail
 /vendor
-/dist
+/dist/*
+!/dist/*.exe
 /electron/bin
 _ide_helper.php
 Homestead.json

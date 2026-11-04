@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Production Dashboard - Canvas Edition</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #0b0f19;
+      color: #f1f5f9;
+    }
+    
+    .font-mono-val {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Floating input when editing a cell directly over the canvas */
+    #canvasCellInput {
+      display: none;
+      position: absolute;
+      background: #1e293b;
+      color: #38bdf8;
+      border: 2px solid #38bdf8;
+      border-radius: 6px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 14px;
+      outline: none;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+      z-index: 50;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col p-3 md:p-6 select-none">
+
+  <!-- Header & Industrial Status Bar -->
+  <header class="max-w-7xl w-full mx-auto mb-4 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-md">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 text-xl shadow-lg shadow-blue-500/10">
+          <i class="fa-solid fa-chart-line"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white">Production Dashboard</h1>
+          </div>
+          <p class="text-xs text-slate-400">Interactive shopfloor tracking & cumulative hourly delta analytics</p>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="flex items-center flex-wrap gap-2">
+        <button id="btnReset" class="px-3.5 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl transition flex items-center gap-1.5 active:scale-95">
+          <i class="fa-solid fa-rotate-left"></i> Reset
+        </button>
+        <button id="btnExport" class="px-3.5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-blue-600/25 active:scale-95">
+          <i class="fa-solid fa-download"></i> Simpan Gambar
+        </button>
+      </div>
+    </div>
+
+    <!-- Parameter Controls Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-800/80">
+      <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 flex flex-col justify-center">
+        <label for="shiftSelect" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
+          <i class="fa-solid fa-business-time text-blue-400"></i> Giliran (Shift)
+        </label>
+        <select id="shiftSelect" class="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none transition cursor-pointer">
+          <option value="1">Shift I (Pagi / Siang)</option>
+          <option value="2">Shift II (Sore / Malam)</option>
+          <option value="3">Shift III (Dini Hari)</option>
+        </select>
+      </div>
+
+      <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 flex flex-col justify-center">
+        <label for="hariSelect" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
+          <i class="fa-solid fa-calendar-week text-indigo-400"></i> Hari Kerja & Durasi
+        </label>
+        <select id="hariSelect" class="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none transition cursor-pointer">
+          <option value="5">5 Hari Kerja (9 Jam Operasional)</option>
+          <option value="6">6 Hari Kerja (8 Jam Operasional)</option>
+        </select>
+      </div>
+
+      <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 flex flex-col justify-center">
+        <label for="targetInput" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
+          <i class="fa-solid fa-bullseye text-amber-400"></i> Target Produksi (Unit)
+        </label>
+        <input id="targetInput" type="number" min="1" step="10" value="1120" class="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg p-2 font-mono-val focus:ring-2 focus:ring-amber-500 outline-none transition">
+      </div>
+    </div>
+  </header>
+
+  <!-- Interactive Instruction Hint -->
+  <div class="max-w-7xl w-full mx-auto mb-2 flex items-center justify-between text-xs text-slate-400 px-2">
+    <div class="flex items-center gap-2">
+      <span class="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+      <span>Klik langsung angka pada kolom <span class="text-cyan-300 font-semibold underline underline-offset-2">Actual</span> di kanvas untuk mengedit nilai.</span>
+    </div>
+    <span class="hidden sm:inline text-slate-500">Tekan Enter atau Tab untuk lompat ke baris berikutnya</span>
+  </div>
+
+  <!-- Canvas Container Box -->
+  <main class="max-w-7xl w-full mx-auto relative flex-1 flex flex-col bg-slate-900/60 border border-slate-800/80 rounded-2xl p-2 md:p-4 shadow-2xl backdrop-blur-md overflow-hidden">
+    <div id="canvasWrapper" class="relative w-full flex-1 min-h-[640px] overflow-x-auto">
+      <canvas id="dashboardCanvas" class="block rounded-xl mx-auto"></canvas>
+      
+      <!-- Dynamic Floating Inline Editor Input -->
+      <input type="number" id="canvasCellInput" min="0" step="1">
+    </div>
+  </main>
+
+  <!-- Toast Notification Message -->
+  <div id="toast" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 z-50 pointer-events-none">
+    <div id="toastIcon" class="text-emerald-400 text-lg"><i class="fa-solid fa-circle-check"></i></div>
+    <div id="toastMsg" class="text-sm font-medium">Data berhasil diperbarui</div>
+  </div>
+
+  <script>
+    // Shift & Hours Configuration definition
+    const shiftJam = {
+      1: {
+        5: ["07-08", "08-09", "09-10", "10-11", "11-12", "12-13", "13-14", "14-15", "15-16"],
+        6: ["07-08", "08-09", "09-10", "10-11", "11-12", "12-13", "13-14", "14-15"]
+      },
+      2: {
+        5: ["16-17", "17-18", "18-19", "19-20", "20-21", "21-22", "22-23", "23-00", "00-01"],
+        6: ["15-16", "16-17", "17-18", "18-19", "19-20", "20-21", "21-22", "22-23"]
+      },
+      3: {
+        5: ["01-02", "02-03", "03-04", "04-05", "05-06", "06-07", "07-08", "08-09", "09-10"],
+        6: ["23-00", "00-01", "01-02", "02-03", "03-04", "04-05", "05-06", "06-07"]
+      }
+    };
+
+    // State Variables
+    let currentShift = 1;
+    let currentHari = 5;
+    let currentTarget = 1120;
+    let actuals = [];
+    let hoveredRow = -1;
+    let hoveredActualCell = -1;
+    let activeEditingIndex = -1;
+
+    // Hit test registry for interactive clicks on canvas
+    let interactiveHitboxes = [];
+
+    // DOM Elements
+    const canvas = document.getElementById("dashboardCanvas");
+    const ctx = canvas.getContext("2d");
+    const wrapper = document.getElementById("canvasWrapper");
+    const cellInput = document.getElementById("canvasCellInput");
+    const shiftSelect = document.getElementById("shiftSelect");
+    const hariSelect = document.getElementById("hariSelect");
+    const targetInput = document.getElementById("targetInput");
+    const btnReset = document.getElementById("btnReset");
+    const btnExport = document.getElementById("btnExport");
+
+    // Initialize State & Storage
+    function init() {
+      currentShift = parseInt(shiftSelect.value);
+      currentHari = parseInt(hariSelect.value);
+      currentTarget = parseInt(targetInput.value) || 0;
+
+      const jamList = shiftJam[currentShift][currentHari];
+      actuals = new Array(jamList.length).fill(0);
+
+      // Event Listeners for Controls
+      shiftSelect.addEventListener("change", () => {
+        currentShift = parseInt(shiftSelect.value);
+        resetActualsArray();
+        render();
+        showToast("Shift diubah ke Shift " + (currentShift === 1 ? "I" : currentShift === 2 ? "II" : "III"));
+      });
+
+      hariSelect.addEventListener("change", () => {
+        currentHari = parseInt(hariSelect.value);
+        resetActualsArray();
+        render();
+        showToast(`Durasi kerja diset ke ${currentHari} hari (${shiftJam[currentShift][currentHari].length} Jam)`);
+      });
+
+      targetInput.addEventListener("input", () => {
+        currentTarget = Math.max(0, parseInt(targetInput.value) || 0);
+        render();
+      });
+
+      btnReset.addEventListener("click", () => {
+        resetActualsArray();
+        render();
+        showToast("Nilai actual berhasil direset ke 0", "info");
+      });
+      btnExport.addEventListener("click", exportCanvasImage);
+
+      // Canvas Interactive Handlers
+      setupCanvasInteractions();
+
+      // Window resize handling
+      window.addEventListener("resize", () => {
+        render();
+      });
+
+      render();
+    }
+
+    function resetActualsArray() {
+      const jamList = shiftJam[currentShift][currentHari];
+      actuals = new Array(jamList.length).fill(0);
+      closeCellEditor();
+    }
+
+    function generateDemoData() {
+      const jamList = shiftJam[currentShift][currentHari];
+      const plan = Math.floor(currentTarget / jamList.length);
+      
+      actuals = jamList.map(() => {
+        // Generate realistic variance between -15% and +15% of plan
+        const variance = (Math.random() * 0.3 - 0.12);
+        return Math.max(10, Math.round(plan * (1 + variance)));
+      });
+
+      render();
+      showToast("Data simulasi acak berhasil dimuat", "success");
+    }
+
+    // Mathematical Calculation Engine
+    function calculateDashboardMetrics() {
+      const jamList = shiftJam[currentShift][currentHari];
+      const count = jamList.length;
+      const planPerHour = Math.floor(currentTarget / count);
+
+      let pc = 0;
+      let ac = 0;
+      let onTrackCount = 0;
+      let behindCount = 0;
+      let pendingCount = 0;
+      const rows = [];
+
+      for (let i = 0; i < count; i++) {
+        const jam = jamList[i];
+        const act = actuals[i] || 0;
+        pc += planPerHour;
+        ac += act;
+
+        const delta = act - planPerHour;
+        const deltaAcc = ac - pc;
+        const ratio = planPerHour > 0 ? (act / planPerHour) : 0;
+        const pct = Math.round(ratio * 100);
+
+        if (act === 0) {
+          pendingCount++;
+        } else if (act >= planPerHour) {
+          onTrackCount++;
+        } else {
+          behindCount++;
+        }
+
+        rows.push({
+          index: i,
+          jam: jam,
+          plan: planPerHour,
+          planAcc: pc,
+          actual: act,
+          actualAcc: ac,
+          delta: delta,
+          deltaAcc: deltaAcc,
+          ratio: ratio,
+          pct: pct
+        });
+      }
+
+      const totalPlan = pc;
+      const totalActual = ac;
+      const totalDelta = totalActual - totalPlan;
+      const achievementRate = totalPlan > 0 ? ((totalActual / totalPlan) * 100).toFixed(1) : "0.0";
+
+      return {
+        jamList,
+        planPerHour,
+        rows,
+        totalPlan,
+        totalActual,
+        totalDelta,
+        achievementRate,
+        onTrackCount,
+        behindCount,
+        pendingCount
+      };
+    }
+
+    // High DPI Canvas Setup
+    function setupCanvasDPI(desiredWidth, desiredHeight) {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = desiredWidth * dpr;
+      canvas.height = desiredHeight * dpr;
+      canvas.style.width = desiredWidth + "px";
+      canvas.style.height = desiredHeight + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    // Helper Drawing Functions
+    function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+      if (typeof radius === 'number') {
+        radius = { tl: radius, tr: radius, br: radius, bl: radius };
+      }
+      ctx.beginPath();
+      ctx.moveTo(x + radius.tl, y);
+      ctx.lineTo(x + width - radius.tr, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius.tr);
+      ctx.lineTo(x + width, y + radius.br);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius.br, y + height);
+      ctx.lineTo(x + radius.bl, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius.bl);
+      ctx.lineTo(x, y + radius.tl);
+      ctx.quadraticCurveTo(x, y, x + radius.tl, y);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    // Component: KPI Summary Header Cards
+    function drawKPICards(x, y, w, h, metrics) {
+      const cardCount = 4;
+      const cardGap = 12;
+      const cardW = (w - (cardGap * (cardCount - 1))) / cardCount;
+
+      const cards = [
+        {
+          title: "TOTAL PLAN ACC",
+          value: metrics.totalPlan.toLocaleString("id-ID"),
+          sub: `${metrics.planPerHour} unit / jam`,
+          color: "#38bdf8",
+          borderColor: "rgba(56, 189, 248, 0.25)"
+        },
+        {
+          title: "TOTAL ACTUAL ACC",
+          value: metrics.totalActual.toLocaleString("id-ID"),
+          sub: "Output aktual terkumpul",
+          color: "#818cf8",
+          borderColor: "rgba(129, 140, 248, 0.25)"
+        },
+        {
+          title: "DELTA ACC",
+          value: (metrics.totalDelta >= 0 ? "+" : "") + metrics.totalDelta.toLocaleString("id-ID"),
+          sub: metrics.totalDelta >= 0 ? "Surplus terhadap target" : "Defisit terhadap target",
+          color: metrics.totalDelta >= 0 ? "#10b981" : "#ef4444",
+          borderColor: metrics.totalDelta >= 0 ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)"
+        },
+        {
+          title: "ACHIEVEMENT RATE",
+          value: metrics.achievementRate + "%",
+          sub: parseFloat(metrics.achievementRate) >= 100 ? "Target Terpenuhi" : "Di Bawah Target",
+          color: parseFloat(metrics.achievementRate) >= 100 ? "#10b981" : (parseFloat(metrics.achievementRate) >= 80 ? "#38bdf8" : "#f59e0b"),
+          borderColor: "rgba(245, 158, 11, 0.25)"
+        }
+      ];
+
+      cards.forEach((c, i) => {
+        const cx = x + i * (cardW + cardGap);
+        // Card background
+        ctx.fillStyle = "#0f172a";
+        ctx.strokeStyle = c.borderColor;
+        ctx.lineWidth = 1;
+        roundRect(ctx, cx, y, cardW, h, 12, true, true);
+
+        // Accent top indicator strip
+        ctx.fillStyle = c.color;
+        roundRect(ctx, cx + 14, y + 2, 24, 3, 2, true, false);
+
+        // Title
+        ctx.font = "700 10px 'Plus Jakarta Sans'";
+        ctx.fillStyle = "#94a3b8";
+        ctx.textAlign = "left";
+        ctx.fillText(c.title, cx + 14, y + 24);
+
+        // Value
+        ctx.font = "700 20px 'JetBrains Mono'";
+        ctx.fillStyle = c.color;
+        ctx.fillText(c.value, cx + 14, y + 52);
+
+        // Sub
+        ctx.font = "500 10px 'Plus Jakarta Sans'";
+        ctx.fillStyle = "#64748b";
+        ctx.fillText(c.sub, cx + 14, y + 72);
+      });
+    }
+
+    // Component: Hourly Comparison Chart (Full Width)
+    function drawAnalyticsChart(x, y, w, h, metrics) {
+      const barChartW = w;
+
+      // 1. Background Box for Hourly Plan vs Actual
+      ctx.fillStyle = "#0f172a";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.07)";
+      ctx.lineWidth = 1;
+      roundRect(ctx, x, y, barChartW, h, 14, true, true);
+
+      // Section Header & Legend
+      ctx.font = "700 12px 'Plus Jakarta Sans'";
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillText("GRAFIK PRODUKSI PER JAM (PLAN VS ACTUAL)", x + 18, y + 26);
+
+      // Legends
+      const legX = x + barChartW - (barChartW < 520 ? 150 : 270);
+      const legY = y + 22;
+
+      ctx.fillStyle = "rgba(56, 189, 248, 0.4)";
+      roundRect(ctx, legX, legY - 9, 10, 10, 2, true, false);
+      ctx.font = "500 10px 'Plus Jakarta Sans'";
+      ctx.fillStyle = "#94a3b8";
+      ctx.fillText("Plan", legX + 14, legY);
+
+      ctx.fillStyle = "#10b981";
+      roundRect(ctx, legX + 48, legY - 9, 10, 10, 2, true, false);
+      ctx.fillText("Actual >= Plan", legX + 62, legY);
+
+      if (barChartW >= 520) {
+        ctx.fillStyle = "#ef4444";
+        roundRect(ctx, legX + 148, legY - 9, 10, 10, 2, true, false);
+        ctx.fillText("Actual < Plan", legX + 162, legY);
+      }
+
+      // Chart plotting area
+      const plotX = x + 40;
+      const plotY = y + 45;
+      const plotW = barChartW - 55;
+      const plotH = h - 75;
+
+      // Find Max Value for scale
+      let maxVal = metrics.planPerHour;
+      metrics.rows.forEach(r => {
+        if (r.actual > maxVal) maxVal = r.actual;
+      });
+      maxVal = Math.ceil((maxVal * 1.25) / 10) * 10;
+      if (maxVal === 0) maxVal = 100;
+
+      // Draw horizontal grid lines & labels
+      const gridLevels = 4;
+      ctx.font = "400 10px 'JetBrains Mono'";
+      ctx.fillStyle = "#64748b";
+      ctx.textAlign = "right";
+
+      for (let i = 0; i <= gridLevels; i++) {
+        const val = Math.round((maxVal / gridLevels) * i);
+        const gy = plotY + plotH - ((val / maxVal) * plotH);
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+        ctx.beginPath();
+        ctx.moveTo(plotX, gy);
+        ctx.lineTo(plotX + plotW, gy);
+        ctx.stroke();
+
+        ctx.fillText(val, plotX - 8, gy + 3);
+      }
+      ctx.textAlign = "left";
+
+      // Draw Bars
+      const colCount = metrics.rows.length;
+      const bandWidth = plotW / colCount;
+      const barWidth = Math.min(22, bandWidth * 0.32);
+
+      metrics.rows.forEach((row, i) => {
+        const cx = plotX + (i * bandWidth) + (bandWidth / 2);
+
+        // Plan Bar (Left of slot center)
+        const planH = (row.plan / maxVal) * plotH;
+        const planX = cx - barWidth - 2;
+        const planY = plotY + plotH - planH;
+
+        ctx.fillStyle = "rgba(56, 189, 248, 0.25)";
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.6)";
+        ctx.lineWidth = 1;
+        roundRect(ctx, planX, planY, barWidth, planH, 4, true, true);
+
+        // Actual Bar (Right of slot center)
+        const actH = (row.actual / maxVal) * plotH;
+        const actX = cx + 2;
+        const actY = plotY + plotH - actH;
+
+        const isGood = row.actual >= row.plan;
+        ctx.fillStyle = isGood ? "rgba(16, 185, 129, 0.75)" : "rgba(239, 68, 68, 0.75)";
+        ctx.strokeStyle = isGood ? "#10b981" : "#ef4444";
+        ctx.lineWidth = 1;
+        roundRect(ctx, actX, actY, barWidth, actH, 4, true, true);
+
+        // Hour Label on X Axis
+        ctx.font = "600 10px 'JetBrains Mono'";
+        ctx.fillStyle = (hoveredRow === i) ? "#38bdf8" : "#94a3b8";
+        ctx.textAlign = "center";
+        ctx.fillText(row.jam, cx, plotY + plotH + 18);
+
+        // Top value for Actual bar
+        if (row.actual > 0) {
+          ctx.font = "700 9px 'JetBrains Mono'";
+          ctx.fillStyle = isGood ? "#34d399" : "#f87171";
+          ctx.fillText(row.actual, actX + (barWidth / 2), Math.max(plotY + 12, actY - 4));
+        }
+      });
+      ctx.textAlign = "left";
+    }
+
+    // Component: High-Aesthetic Interactive Production Table
+    function drawDataTable(x, y, w, metrics) {
+      // Define Columns with Simplified Status Label
+      const columns = [
+        { label: "JAM", width: 0.11, align: "center", key: "jam" },
+        { label: "PLAN", width: 0.10, align: "center", key: "plan" },
+        { label: "PLAN ACC", width: 0.12, align: "center", key: "planAcc" },
+        { label: "ACTUAL (EDIT ✎)", width: 0.16, align: "center", key: "actual", isEditable: true },
+        { label: "ACTUAL ACC", width: 0.13, align: "center", key: "actualAcc" },
+        { label: "DELTA", width: 0.11, align: "center", key: "delta" },
+        { label: "DELTA ACC", width: 0.12, align: "center", key: "deltaAcc" },
+        { label: "STATUS", width: 0.15, align: "center", key: "status" }
+      ];
+
+      const headerHeight = 42;
+      const rowHeight = 40;
+      const totalRows = metrics.rows.length;
+      const tableHeight = headerHeight + (totalRows * rowHeight) + 48; // rows + summary
+
+      // Outer Table Card
+      ctx.fillStyle = "#0f172a";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      ctx.lineWidth = 1;
+      roundRect(ctx, x, y, w, tableHeight, 14, true, true);
+
+      // Header Bar Background
+      ctx.fillStyle = "#1e293b";
+      roundRect(ctx, x, y, w, headerHeight, { tl: 14, tr: 14, bl: 0, br: 0 }, true, false);
+
+      // Render Header Text
+      let curX = x;
+      ctx.font = "700 11px 'Plus Jakarta Sans'";
+      ctx.fillStyle = "#cbd5e1";
+
+      columns.forEach(col => {
+        const colW = w * col.width;
+        ctx.textAlign = col.align;
+        const textX = col.align === "center" ? (curX + colW / 2) : (curX + 16);
+        ctx.fillText(col.label, textX, y + 26);
+
+        // Header separator line
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+        ctx.beginPath();
+        ctx.moveTo(curX + colW, y + 8);
+        ctx.lineTo(curX + colW, y + headerHeight - 8);
+        ctx.stroke();
+
+        curX += colW;
+      });
+
+      // Render Data Rows
+      let rowY = y + headerHeight;
+
+      metrics.rows.forEach((row, i) => {
+        const isHovered = (hoveredRow === i);
+
+        // Row zebra/highlight background
+        if (isHovered) {
+          ctx.fillStyle = "rgba(56, 189, 248, 0.07)";
+        } else if (i % 2 === 1) {
+          ctx.fillStyle = "rgba(255, 255, 255, 0.015)";
+        } else {
+          ctx.fillStyle = "transparent";
+        }
+        ctx.fillRect(x, rowY, w, rowHeight);
+
+        // Row Divider
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+        ctx.beginPath();
+        ctx.moveTo(x, rowY + rowHeight);
+        ctx.lineTo(x + w, rowY + rowHeight);
+        ctx.stroke();
+
+        // Render cell values
+        let cellX = x;
+        columns.forEach(col => {
+          const colW = w * col.width;
+          const centerX = cellX + (colW / 2);
+          const centerY = rowY + (rowHeight / 2) + 4;
+          ctx.textAlign = col.align;
+
+          if (col.key === "jam") {
+            ctx.font = "600 12px 'JetBrains Mono'";
+            ctx.fillStyle = "#94a3b8";
+            ctx.fillText(row.jam, centerX, centerY);
+          } else if (col.key === "plan") {
+            ctx.font = "500 13px 'JetBrains Mono'";
+            ctx.fillStyle = "#e2e8f0";
+            ctx.fillText(row.plan.toString(), centerX, centerY);
+          } else if (col.key === "planAcc") {
+            ctx.font = "600 13px 'JetBrains Mono'";
+            ctx.fillStyle = "#38bdf8";
+            ctx.fillText(row.planAcc.toString(), centerX, centerY);
+          } else if (col.key === "actual") {
+            // Editable Cell Capsule
+            const boxW = Math.min(84, colW - 16);
+            const boxH = 28;
+            const boxX = centerX - (boxW / 2);
+            const boxY = rowY + (rowHeight - boxH) / 2;
+
+            const isCellHovered = (hoveredActualCell === i);
+            ctx.fillStyle = isCellHovered ? "#1e293b" : "#131d2e";
+            ctx.strokeStyle = isCellHovered ? "#38bdf8" : "rgba(56, 189, 248, 0.35)";
+            ctx.lineWidth = isCellHovered ? 1.5 : 1;
+            roundRect(ctx, boxX, boxY, boxW, boxH, 6, true, true);
+
+            ctx.font = "700 13px 'JetBrains Mono'";
+            ctx.fillStyle = row.actual > 0 ? "#f8fafc" : "#64748b";
+            ctx.fillText(row.actual.toString(), centerX, centerY - 1);
+
+            // Register clickable hitbox
+            interactiveHitboxes.push({
+              index: i,
+              type: "actual-cell",
+              x: boxX,
+              y: boxY,
+              w: boxW,
+              h: boxH
+            });
+          } else if (col.key === "actualAcc") {
+            ctx.font = "600 13px 'JetBrains Mono'";
+            ctx.fillStyle = "#818cf8";
+            ctx.fillText(row.actualAcc.toString(), centerX, centerY);
+          } else if (col.key === "delta") {
+            const isPos = row.delta >= 0;
+            ctx.font = "700 13px 'JetBrains Mono'";
+            ctx.fillStyle = isPos ? "#10b981" : "#ef4444";
+            ctx.fillText((isPos ? "+" : "") + row.delta, centerX, centerY);
+          } else if (col.key === "deltaAcc") {
+            const isPos = row.deltaAcc >= 0;
+            ctx.font = "700 13px 'JetBrains Mono'";
+            ctx.fillStyle = isPos ? "#10b981" : "#ef4444";
+            ctx.fillText((isPos ? "+" : "") + row.deltaAcc, centerX, centerY);
+          } else if (col.key === "status") {
+            // Hourly Mini Doughnut Chart
+            const donutR = 12;
+            const innerR = 7;
+            const donutX = centerX - 18;
+            const donutY = rowY + (rowHeight / 2);
+
+            let statusColor = "#475569";
+            let statusText = "0%";
+            if (row.actual > 0) {
+              if (row.pct >= 100) {
+                statusColor = "#10b981";
+              } else if (row.pct >= 80) {
+                statusColor = "#38bdf8";
+              } else {
+                statusColor = "#ef4444";
+              }
+              statusText = row.pct + "%";
+            }
+
+            // Background ring track
+            ctx.beginPath();
+            ctx.arc(donutX, donutY, (donutR + innerR) / 2, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+            ctx.lineWidth = donutR - innerR;
+            ctx.stroke();
+
+            // Progress arc
+            if (row.actual > 0) {
+              const clamped = Math.min(row.pct, 100);
+              const startAngle = -Math.PI / 2;
+              const endAngle = startAngle + (clamped / 100) * (Math.PI * 2);
+              ctx.beginPath();
+              ctx.arc(donutX, donutY, (donutR + innerR) / 2, startAngle, endAngle);
+              ctx.strokeStyle = statusColor;
+              ctx.lineWidth = donutR - innerR;
+              ctx.lineCap = "round";
+              ctx.stroke();
+            }
+
+            // Inner hole styling
+            ctx.beginPath();
+            ctx.arc(donutX, donutY, innerR - 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = row.actual > 0 ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.25)";
+            ctx.fill();
+
+            // Status Percentage text adjacent to mini doughnut
+            ctx.textAlign = "left";
+            ctx.font = "700 11px 'JetBrains Mono'";
+            ctx.fillStyle = statusColor;
+            ctx.fillText(statusText, centerX + 1, centerY - 1);
+            ctx.textAlign = col.align;
+          }
+
+          cellX += colW;
+        });
+
+        rowY += rowHeight;
+      });
+
+      // Render Summary Footer Row
+      const footerH = 48;
+      ctx.fillStyle = "#1e293b";
+      roundRect(ctx, x, rowY, w, footerH, { tl: 0, tr: 0, bl: 14, br: 14 }, true, false);
+
+      ctx.textAlign = "center";
+      ctx.font = "800 11px 'Plus Jakarta Sans'";
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillText("TOTAL AKHIR", x + (w * columns[0].width) / 2, rowY + 28);
+
+      let fX = x + (w * columns[0].width);
+      
+      // Total Plan
+      ctx.font = "700 13px 'JetBrains Mono'";
+      ctx.fillStyle = "#38bdf8";
+      ctx.fillText(metrics.totalPlan.toString(), fX + (w * columns[1].width) / 2, rowY + 28);
+      fX += (w * columns[1].width);
+
+      // Plan Acc target
+      ctx.fillText(metrics.totalPlan.toString(), fX + (w * columns[2].width) / 2, rowY + 28);
+      fX += (w * columns[2].width);
+
+      // Total Actual
+      ctx.fillStyle = "#818cf8";
+      ctx.fillText(metrics.totalActual.toString(), fX + (w * columns[3].width) / 2, rowY + 28);
+      fX += (w * columns[3].width);
+
+      // Actual Acc
+      ctx.fillText(metrics.totalActual.toString(), fX + (w * columns[4].width) / 2, rowY + 28);
+      fX += (w * columns[4].width);
+
+      // Total Delta
+      const isPos = metrics.totalDelta >= 0;
+      ctx.fillStyle = isPos ? "#10b981" : "#ef4444";
+      ctx.fillText((isPos ? "+" : "") + metrics.totalDelta.toString(), fX + (w * columns[5].width) / 2, rowY + 28);
+      fX += (w * columns[5].width);
+
+      // Total Delta Acc
+      ctx.fillText((isPos ? "+" : "") + metrics.totalDelta.toString(), fX + (w * columns[6].width) / 2, rowY + 28);
+      fX += (w * columns[6].width);
+
+      // Overall Cumulative Status Doughnut in Footer
+      const footColW = w * columns[7].width;
+      const footCenterX = fX + (footColW / 2);
+      const footDonutX = footCenterX - 24;
+      const footDonutY = rowY + 24;
+      const fDonutR = 12;
+      const fInnerR = 7;
+      const fRate = parseFloat(metrics.achievementRate);
+      const fColor = fRate >= 100 ? "#10b981" : (fRate >= 80 ? "#38bdf8" : "#ef4444");
+
+      // Track
+      ctx.beginPath();
+      ctx.arc(footDonutX, footDonutY, (fDonutR + fInnerR) / 2, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+      ctx.lineWidth = fDonutR - fInnerR;
+      ctx.stroke();
+
+      // Arc
+      const fClamped = Math.min(fRate, 100);
+      const fEndAngle = (-Math.PI / 2) + (fClamped / 100) * (Math.PI * 2);
+      ctx.beginPath();
+      ctx.arc(footDonutX, footDonutY, (fDonutR + fInnerR) / 2, -Math.PI / 2, fEndAngle);
+      ctx.strokeStyle = fColor;
+      ctx.lineWidth = fDonutR - fInnerR;
+      ctx.lineCap = "round";
+      ctx.stroke();
+
+      // Footer Text
+      ctx.textAlign = "left";
+      ctx.font = "700 12px 'JetBrains Mono'";
+      ctx.fillStyle = fColor;
+      ctx.fillText(metrics.achievementRate + "%", footCenterX - 6, rowY + 28);
+
+      ctx.textAlign = "left";
+    }
+
+    // Main Render Pipeline
+    function render() {
+      // Clear interactive click targets
+      interactiveHitboxes = [];
+
+      // Ensure crisp high-res layout with horizontal scrolling if screen is narrow
+      const containerWidth = Math.max(900, wrapper.clientWidth - 20);
+      const metrics = calculateDashboardMetrics();
+
+      const padding = 16;
+      const gap = 16;
+      const kpiHeight = 88;
+      const chartHeight = 220;
+      const headerHeight = 42;
+      const rowHeight = 40;
+      const footerHeight = 48;
+      const tableHeight = headerHeight + (metrics.rows.length * rowHeight) + footerHeight;
+
+      const totalHeight = padding + kpiHeight + gap + chartHeight + gap + tableHeight + padding + 10;
+
+      setupCanvasDPI(containerWidth, totalHeight);
+
+      // Clear Canvas Background
+      ctx.fillStyle = "#0b0f19";
+      ctx.fillRect(0, 0, containerWidth, totalHeight);
+
+      let currentY = padding;
+      const contentWidth = containerWidth - (padding * 2);
+
+      // 1. Draw KPI Summary Cards
+      drawKPICards(padding, currentY, contentWidth, kpiHeight, metrics);
+      currentY += kpiHeight + gap;
+
+      // 2. Draw Hourly Comparison & Doughnut Status Panel
+      drawAnalyticsChart(padding, currentY, contentWidth, chartHeight, metrics);
+      currentY += chartHeight + gap;
+
+      // 3. Draw Interactive Data Table with Doughnut Statuses
+      drawDataTable(padding, currentY, contentWidth, metrics);
+    }
+
+    // Interaction Setup: Hit-testing, Hover effects & Direct Inline Input
+    function setupCanvasInteractions() {
+      // Helper to compute mouse coordinates relative to canvas display
+      function getCanvasPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        };
+      }
+
+      // Mouse Move: Hover effects
+      canvas.addEventListener("mousemove", (e) => {
+        const pos = getCanvasPos(e);
+        let foundCell = -1;
+        let foundRow = -1;
+
+        for (const box of interactiveHitboxes) {
+          if (pos.x >= box.x && pos.x <= box.x + box.w && pos.y >= box.y && pos.y <= box.y + box.h) {
+            foundCell = box.index;
+            foundRow = box.index;
+            break;
+          }
+        }
+
+        if (foundCell !== hoveredActualCell) {
+          hoveredActualCell = foundCell;
+          hoveredRow = foundRow;
+          canvas.style.cursor = foundCell !== -1 ? "pointer" : "default";
+          render();
+        }
+      });
+
+      canvas.addEventListener("mouseleave", () => {
+        if (hoveredActualCell !== -1 || hoveredRow !== -1) {
+          hoveredActualCell = -1;
+          hoveredRow = -1;
+          canvas.style.cursor = "default";
+          render();
+        }
+      });
+
+      // Canvas Click: Open inline editor overlay
+      canvas.addEventListener("click", (e) => {
+        const pos = getCanvasPos(e);
+        for (const box of interactiveHitboxes) {
+          if (pos.x >= box.x && pos.x <= box.x + box.w && pos.y >= box.y && pos.y <= box.y + box.h) {
+            openCellEditor(box.index, box);
+            return;
+          }
+        }
+        closeCellEditor();
+      });
+
+      // Inline Cell Editor Input Events
+      cellInput.addEventListener("input", () => {
+        if (activeEditingIndex >= 0) {
+          const val = Math.max(0, parseInt(cellInput.value) || 0);
+          actuals[activeEditingIndex] = val;
+          render();
+        }
+      });
+
+      cellInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === "Tab") {
+          e.preventDefault();
+          commitAndNextRow(e.shiftKey ? -1 : 1);
+        } else if (e.key === "Escape") {
+          closeCellEditor();
+        }
+      });
+
+      cellInput.addEventListener("blur", () => {
+        closeCellEditor();
+      });
+    }
+
+    // Open Floating HTML Input right above the Canvas Actual Cell
+    function openCellEditor(index, box) {
+      activeEditingIndex = index;
+      const rect = canvas.getBoundingClientRect();
+      const wrapperRect = wrapper.getBoundingClientRect();
+
+      // Calculate absolute position inside wrapper
+      const posX = (rect.left - wrapperRect.left) + box.x;
+      const posY = (rect.top - wrapperRect.top) + box.y;
+
+      cellInput.style.width = box.w + "px";
+      cellInput.style.height = box.h + "px";
+      cellInput.style.left = posX + "px";
+      cellInput.style.top = posY + "px";
+      cellInput.style.display = "block";
+
+      cellInput.value = actuals[index] || "";
+      cellInput.focus();
+      cellInput.select();
+    }
+
+    function closeCellEditor() {
+      if (activeEditingIndex >= 0) {
+        activeEditingIndex = -1;
+        cellInput.style.display = "none";
+      }
+    }
+
+    function commitAndNextRow(direction) {
+      const nextIdx = activeEditingIndex + direction;
+      const jamList = shiftJam[currentShift][currentHari];
+
+      if (nextIdx >= 0 && nextIdx < jamList.length) {
+        // Find next hitbox
+        const nextBox = interactiveHitboxes.find(b => b.index === nextIdx);
+        if (nextBox) {
+          openCellEditor(nextIdx, nextBox);
+          return;
+        }
+      }
+      closeCellEditor();
+    }
+
+    // Export Canvas to PNG file
+    function exportCanvasImage() {
+      closeCellEditor();
+      render();
+
+      const link = document.createElement("a");
+      const timestamp = new Date().toISOString().slice(0, 10);
+      link.download = `Production_Dashboard_Shift${currentShift}_${timestamp}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+
+      showToast("Tangkapan gambar kanvas berhasil diunduh!", "success");
+    }
+
+    // Sleek Custom Toast Notifications (replaces alert)
+    let toastTimeout;
+    function showToast(message, type = "info") {
+      const toast = document.getElementById("toast");
+      const toastMsg = document.getElementById("toastMsg");
+      const toastIcon = document.getElementById("toastIcon");
+
+      clearTimeout(toastTimeout);
+
+      toastMsg.innerText = message;
+      if (type === "success") {
+        toastIcon.className = "text-emerald-400 text-lg";
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+      } else if (type === "warning") {
+        toastIcon.className = "text-amber-400 text-lg";
+        toastIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+      } else {
+        toastIcon.className = "text-blue-400 text-lg";
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
+      }
+
+      toast.classList.remove("translate-y-20", "opacity-0");
+      toast.classList.add("translate-y-0", "opacity-100");
+
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove("translate-y-0", "opacity-100");
+        toast.classList.add("translate-y-20", "opacity-0");
+      }, 3000);
+    }
+
+    // Launch application
+    window.onload = () => {
+      init();
+    };
+  </script>
+</body>
+</html>
